@@ -84,15 +84,33 @@ export default function Generator({ onBack }: GeneratorProps) {
         body: formData,
       })
 
+      const contentType = response.headers.get('content-type') || ''
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Generation failed')
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || 'Generation failed')
+        } else {
+          // Server returned non-JSON (likely timeout or server error)
+          if (response.status === 504 || response.status === 408) {
+            throw new Error('Request timed out. Try reducing the text length or increasing the WPM speed.')
+          }
+          throw new Error(`Server error (${response.status}). The document may be too large or the server is busy.`)
+        }
+      }
+
+      if (!contentType.includes('application/json')) {
+        throw new Error('Unexpected server response. Please try again.')
       }
 
       const data: GenerationResult = await response.json()
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        setError('Connection error. The server may be busy processing a large document.')
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      }
     } finally {
       setIsGenerating(false)
     }
