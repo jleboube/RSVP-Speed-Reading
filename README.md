@@ -121,13 +121,26 @@ docker compose down
 
 | Setting | Description | Default | Range |
 |---------|-------------|---------|-------|
-| `WPM` | Words per minute | 300 | 100-800 |
+| `WPM` | Words per minute | 300 | 100-5000 |
 | `Word Grouping` | Words per frame | 1 | 1-3 |
 | `Font` | Display font | Sans-serif | Sans/Serif/Mono |
 | `Text Color` | Word color | #000000 | Any hex |
 | `Background Color` | Video background | #FFFFFF | Any hex |
 | `Highlight Color` | ORP highlight | #FF0000 | Any hex |
 | `Pause on Punctuation` | Pause at sentences | Enabled | On/Off |
+
+### Speed Zones
+
+| Zone | WPM Range | ms/word | Description |
+|------|-----------|---------|-------------|
+| 🟢 Beginner | 100-300 | 200-600ms | Comfortable learning pace |
+| 🔵 Normal | 300-500 | 120-200ms | Average reading speed |
+| 🔷 Advanced | 500-800 | 75-120ms | Fast, still comprehensible |
+| 🟡 Pro | 800-1200 | 50-75ms | Edge of comprehension |
+| 🟠 Ultra | 1200-2000 | 30-50ms | Reduced comprehension |
+| 🔴 Non-Human | 2000-5000 | 12-30ms | Beyond human perception |
+
+> ⚠️ **Note**: Speeds above 1200 WPM exceed typical human reading capabilities. The "Non-Human" zone (2000+ WPM) displays words faster than the human visual system can process for comprehension.
 
 ### Supported File Formats
 
@@ -140,7 +153,7 @@ docker compose down
 
 ### Limits
 
-- Maximum words: 10,000 per video
+- Maximum words: 100,000 per video
 - Maximum file size: 5MB
 - Video resolution: 1920x1080 (1080p)
 - Video codec: H.264 (MP4)
@@ -251,7 +264,7 @@ Research suggests RSVP can enable reading speeds of 700+ WPM while maintaining c
 
 ### Video generation fails
 
-- Ensure text doesn't exceed 10,000 words
+- Ensure text doesn't exceed 100,000 words
 - Check that uploaded files are under 5MB
 - Verify file format is supported (TXT, PDF, DOCX, MD)
 

@@ -189,8 +189,8 @@ async def generate_video(
 
     words = parse_text(text, config.word_grouping)
 
-    if len(words) > 10000:
-        raise ValueError("Text exceeds 10,000 word limit")
+    if len(words) > 100000:
+        raise ValueError("Text exceeds 100,000 word limit")
 
     frame_data = []
     for i, word in enumerate(words):
@@ -269,7 +269,7 @@ async def generate_rsvp_video(
     job_id = str(uuid.uuid4())
 
     config = VideoConfig(
-        wpm=max(100, min(800, wpm)),
+        wpm=max(100, min(5000, wpm)),
         font=font,
         text_color=text_color,
         bg_color=bg_color,
@@ -304,10 +304,10 @@ async def generate_rsvp_video(
     text = " ".join(text.split())
 
     word_count = len(text.split())
-    if word_count > 10000:
+    if word_count > 100000:
         raise HTTPException(
             status_code=400,
-            detail=f"Text exceeds 10,000 word limit (found {word_count} words)",
+            detail=f"Text exceeds 100,000 word limit (found {word_count} words)",
         )
 
     try:

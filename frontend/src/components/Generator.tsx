@@ -139,7 +139,7 @@ export default function Generator({ onBack }: GeneratorProps) {
             <textarea
               id="text-input"
               className="w-full h-48 p-4 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500 resize-none"
-              placeholder="Paste your text here (up to 10,000 words)..."
+              placeholder="Paste your text here..."
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={!!file}
@@ -197,26 +197,113 @@ export default function Generator({ onBack }: GeneratorProps) {
         >
           <h2 className="text-lg font-semibold mb-4 text-white">Settings</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="wpm" className="block text-sm font-medium text-gray-300 mb-2">
-                Speed (WPM): <span className="text-blue-400">{wpm}</span>
-              </label>
+          {/* Speed Zone Slider */}
+          <div className="md:col-span-2 mb-2">
+            <label htmlFor="wpm" className="block text-sm font-medium text-gray-300 mb-2">
+              Speed (WPM):{' '}
+              <span className={
+                wpm <= 300 ? 'text-green-400' :
+                wpm <= 500 ? 'text-blue-400' :
+                wpm <= 800 ? 'text-cyan-400' :
+                wpm <= 1200 ? 'text-yellow-400' :
+                wpm <= 2000 ? 'text-orange-400' :
+                'text-red-400'
+              }>
+                {wpm}
+              </span>
+              <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                wpm <= 300 ? 'bg-green-500/20 text-green-400' :
+                wpm <= 500 ? 'bg-blue-500/20 text-blue-400' :
+                wpm <= 800 ? 'bg-cyan-500/20 text-cyan-400' :
+                wpm <= 1200 ? 'bg-yellow-500/20 text-yellow-400' :
+                wpm <= 2000 ? 'bg-orange-500/20 text-orange-400' :
+                'bg-red-500/20 text-red-400'
+              }`}>
+                {wpm <= 300 ? 'Beginner' :
+                 wpm <= 500 ? 'Normal' :
+                 wpm <= 800 ? 'Advanced' :
+                 wpm <= 1200 ? 'Pro' :
+                 wpm <= 2000 ? 'Ultra' :
+                 'Non-Human'}
+              </span>
+            </label>
+
+            {/* Slider track with zone colors */}
+            <div className="relative mt-3 mb-1">
+              <div className="absolute inset-0 h-2 rounded-lg overflow-hidden flex">
+                <div className="bg-green-500/40 h-full" style={{ width: '4%' }} />
+                <div className="bg-blue-500/40 h-full" style={{ width: '4%' }} />
+                <div className="bg-cyan-500/40 h-full" style={{ width: '6%' }} />
+                <div className="bg-yellow-500/40 h-full" style={{ width: '8%' }} />
+                <div className="bg-orange-500/40 h-full" style={{ width: '16%' }} />
+                <div className="bg-red-500/40 h-full" style={{ width: '62%' }} />
+              </div>
               <input
                 id="wpm"
                 type="range"
                 min="100"
-                max="800"
+                max="5000"
+                step="10"
                 value={wpm}
                 onChange={(e) => setWpm(Number(e.target.value))}
-                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                className="relative w-full h-2 bg-transparent rounded-lg appearance-none cursor-pointer z-10"
+                style={{
+                  WebkitAppearance: 'none',
+                }}
               />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>100</span>
-                <span>800</span>
+            </div>
+
+            {/* Zone markers */}
+            <div className="relative h-8 text-xs">
+              <div className="absolute flex flex-col items-center" style={{ left: '0%' }}>
+                <div className="w-px h-2 bg-gray-600" />
+                <span className="text-gray-500 mt-1">100</span>
+              </div>
+              <div className="absolute flex flex-col items-center" style={{ left: '4%', transform: 'translateX(-50%)' }}>
+                <div className="w-px h-2 bg-green-500/50" />
+                <span className="text-green-500/70 mt-1">300</span>
+              </div>
+              <div className="absolute flex flex-col items-center" style={{ left: '8%', transform: 'translateX(-50%)' }}>
+                <div className="w-px h-2 bg-blue-500/50" />
+                <span className="text-blue-500/70 mt-1">500</span>
+              </div>
+              <div className="absolute flex flex-col items-center" style={{ left: '14%', transform: 'translateX(-50%)' }}>
+                <div className="w-px h-2 bg-cyan-500/50" />
+                <span className="text-cyan-500/70 mt-1">800</span>
+              </div>
+              <div className="absolute flex flex-col items-center" style={{ left: '22%', transform: 'translateX(-50%)' }}>
+                <div className="w-px h-2 bg-yellow-500/50" />
+                <span className="text-yellow-500/70 mt-1">1.2K</span>
+              </div>
+              <div className="absolute flex flex-col items-center" style={{ left: '38%', transform: 'translateX(-50%)' }}>
+                <div className="w-px h-2 bg-orange-500/50" />
+                <span className="text-orange-500/70 mt-1">2K</span>
+              </div>
+              <div className="absolute flex flex-col items-center" style={{ left: '100%', transform: 'translateX(-100%)' }}>
+                <div className="w-px h-2 bg-red-500/50" />
+                <span className="text-red-500/70 mt-1">5K</span>
               </div>
             </div>
 
+            {/* Warning for extreme speeds */}
+            {wpm > 1200 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className={`mt-2 text-xs p-2 rounded-lg ${
+                  wpm > 2000
+                    ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                    : 'bg-orange-500/10 border border-orange-500/20 text-orange-400'
+                }`}
+              >
+                {wpm > 2000
+                  ? '⚠️ Non-human speed: ~' + Math.round(60000/wpm) + 'ms per word. Beyond human perception threshold.'
+                  : '⚡ Ultra speed: Comprehension may be significantly reduced at this rate.'}
+              </motion.div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="word-grouping" className="block text-sm font-medium text-gray-300 mb-2">
                 Words per frame: <span className="text-blue-400">{wordGrouping}</span>
@@ -379,6 +466,13 @@ export default function Generator({ onBack }: GeneratorProps) {
           </motion.div>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-white/10 py-8 mt-12">
+        <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm">
+          Copyright 2026 Joe LeBoube
+        </div>
+      </footer>
     </div>
   )
 }

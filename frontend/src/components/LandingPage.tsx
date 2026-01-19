@@ -318,27 +318,24 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-5xl mx-auto">
             {steps.map((step, index) => (
               <motion.div
                 key={step.number}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.15 }}
                 viewport={{ once: true }}
-                className="relative"
+                className="text-center lg:text-left"
               >
-                {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-blue-500/50 to-transparent" />
-                )}
-                <div className="text-6xl font-bold text-white/5 mb-4">
+                <div className="text-7xl font-bold text-white/[0.03] mb-2 leading-none">
                   {step.number}
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
-                  <step.icon className="w-6 h-6 text-blue-400" />
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center mb-4 mx-auto lg:mx-0">
+                  <step.icon className="w-7 h-7 text-blue-400" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                <p className="text-gray-400">{step.description}</p>
+                <p className="text-gray-400 text-sm">{step.description}</p>
               </motion.div>
             ))}
           </div>
@@ -378,6 +375,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-4 text-center text-gray-400">
           <p>
             Built with FFmpeg, React, and FastAPI. Open source and free to use.
+          </p>
+          <p className="mt-2 text-gray-500 text-sm">
+            Copyright 2026 Joe LeBoube
           </p>
         </div>
       </footer>
