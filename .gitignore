@@ -1,0 +1,43 @@
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+!.env.example
+
+# Project-specific exclusions
+CLAUDE.md
+AGENTS.md
+RSVP-PRD.md
+.claude/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Build outputs
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp files
+/tmp/
+*.tmp
