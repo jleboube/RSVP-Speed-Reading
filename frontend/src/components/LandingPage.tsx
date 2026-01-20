@@ -128,7 +128,7 @@ const features = [
   {
     icon: Sliders,
     title: 'Fully Customizable',
-    description: 'Adjust speed from 100-800 WPM, colors, fonts, and word grouping.',
+    description: 'Adjust speed from 100-5000 WPM, colors, fonts, and word grouping.',
     color: 'from-teal-500 to-cyan-400',
   },
   {
@@ -173,8 +173,8 @@ const steps = [
 ]
 
 const stats = [
-  { value: '700+', label: 'WPM Possible', icon: Zap },
-  { value: '10K', label: 'Words Supported', icon: BookOpen },
+  { value: '5000', label: 'Max WPM', icon: Zap },
+  { value: '100K', label: 'Words Supported', icon: BookOpen },
   { value: '3x', label: 'Faster Reading', icon: Clock },
   { value: '∞', label: 'Customizations', icon: Palette },
 ]
@@ -222,9 +222,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
-              Read{' '}
+              Read Up To{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-                700+ Words
+                5000 Words
               </span>{' '}
               Per Minute
             </h1>
