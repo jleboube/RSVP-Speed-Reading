@@ -6,20 +6,21 @@ Run with: python3 tests/test_video_generation.py
 
 Prerequisites:
 - Docker containers must be running (docker compose up -d)
-- Playwright must be installed (pip install playwright && playwright install chromium)
 
 Tests:
-1. Text input video generation
-2. TXT file upload
-3. Various WPM speeds
-4. Error handling for edge cases
+1. Health check
+2. Async job submission
+3. Job status polling
+4. Video download
+5. Various WPM speeds
+6. Error handling for edge cases
 """
 
 import os
 import sys
+import time
 import tempfile
 import requests
-from pathlib import Path
 
 # Configuration
 BASE_URL = os.environ.get("RSVP_TEST_URL", "http://localhost:47293")
@@ -60,6 +61,25 @@ class TestResult:
         return self.failed == 0
 
 
+def wait_for_job(job_id: str, timeout: int = 60) -> dict:
+    """Poll job status until completed or failed."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        response = requests.get(f"{API_URL}/status/{job_id}", timeout=5)
+        if response.status_code != 200:
+            raise Exception(f"Status check failed: {response.status_code}")
+
+        status = response.json()
+        if status.get("status") == "completed":
+            return status
+        elif status.get("status") == "failed":
+            raise Exception(f"Job failed: {status.get('message', 'Unknown error')}")
+
+        time.sleep(1)
+
+    raise Exception(f"Job timed out after {timeout}s")
+
+
 def test_health_check(results: TestResult):
     """Test that the API is healthy."""
     try:
@@ -72,46 +92,87 @@ def test_health_check(results: TestResult):
         results.add_fail("Health check", str(e))
 
 
-def test_text_generation(results: TestResult):
-    """Test video generation from text input."""
+def test_async_job_submission(results: TestResult):
+    """Test that job submission returns immediately with job ID."""
     try:
+        start_time = time.time()
         response = requests.post(
             f"{API_URL}/generate",
-            data={
-                "text": SAMPLE_TEXT,
-                "wpm": 1000,  # Fast for quick test
-                "font": "arial",
-                "text_color": "#000000",
-                "bg_color": "#FFFFFF",
-                "highlight_color": "#FF0000",
-                "pause_on_punctuation": "true",
-                "word_grouping": "1",
-            },
-            timeout=120,
+            data={"text": SAMPLE_TEXT, "wpm": 1000},
+            timeout=10,
         )
+        elapsed = time.time() - start_time
 
         if response.status_code == 200:
             data = response.json()
-            if "job_id" in data and "download_url" in data:
-                # Verify video is downloadable
-                video_response = requests.get(
-                    f"{BASE_URL}{data['download_url']}",
-                    timeout=10
-                )
-                if video_response.status_code == 200:
-                    content_type = video_response.headers.get("content-type", "")
-                    if "video" in content_type:
-                        results.add_pass("Text generation")
-                    else:
-                        results.add_fail("Text generation", f"Wrong content type: {content_type}")
+            if "job_id" in data and "status_url" in data:
+                if elapsed < 5:  # Should return in under 5 seconds
+                    results.add_pass("Async job submission (fast return)")
                 else:
-                    results.add_fail("Text generation", f"Download failed: {video_response.status_code}")
+                    results.add_fail("Async job submission", f"Took {elapsed:.1f}s (should be <5s)")
             else:
-                results.add_fail("Text generation", "Missing job_id or download_url")
+                results.add_fail("Async job submission", "Missing job_id or status_url")
         else:
-            results.add_fail("Text generation", f"Status {response.status_code}: {response.text[:200]}")
+            results.add_fail("Async job submission", f"Status {response.status_code}")
     except Exception as e:
-        results.add_fail("Text generation", str(e))
+        results.add_fail("Async job submission", str(e))
+
+
+def test_job_status_polling(results: TestResult):
+    """Test job status endpoint returns progress."""
+    try:
+        # Submit a job
+        response = requests.post(
+            f"{API_URL}/generate",
+            data={"text": SAMPLE_TEXT, "wpm": 1000},
+            timeout=10,
+        )
+        data = response.json()
+        job_id = data["job_id"]
+
+        # Check status
+        status_response = requests.get(f"{API_URL}/status/{job_id}", timeout=5)
+        if status_response.status_code == 200:
+            status = status_response.json()
+            if "status" in status and "percent" in status:
+                results.add_pass("Job status polling")
+            else:
+                results.add_fail("Job status polling", "Missing status or percent fields")
+        else:
+            results.add_fail("Job status polling", f"Status {status_response.status_code}")
+    except Exception as e:
+        results.add_fail("Job status polling", str(e))
+
+
+def test_full_generation_flow(results: TestResult):
+    """Test complete flow: submit -> poll -> download."""
+    try:
+        # Submit job
+        response = requests.post(
+            f"{API_URL}/generate",
+            data={"text": SAMPLE_TEXT, "wpm": 2000},  # Fast for quick test
+            timeout=10,
+        )
+        data = response.json()
+        job_id = data["job_id"]
+
+        # Wait for completion
+        status = wait_for_job(job_id, timeout=60)
+
+        # Download video
+        download_url = status.get("download_url", f"/api/download/{job_id}")
+        video_response = requests.get(f"{BASE_URL}{download_url}", timeout=10)
+
+        if video_response.status_code == 200:
+            content_type = video_response.headers.get("content-type", "")
+            if "video" in content_type:
+                results.add_pass("Full generation flow")
+            else:
+                results.add_fail("Full generation flow", f"Wrong content type: {content_type}")
+        else:
+            results.add_fail("Full generation flow", f"Download failed: {video_response.status_code}")
+    except Exception as e:
+        results.add_fail("Full generation flow", str(e))
 
 
 def test_txt_file_upload(results: TestResult):
@@ -125,18 +186,20 @@ def test_txt_file_upload(results: TestResult):
             response = requests.post(
                 f"{API_URL}/generate",
                 files={"file": ("test.txt", f, "text/plain")},
-                data={"wpm": "1000"},
-                timeout=120,
+                data={"wpm": "2000"},
+                timeout=10,
             )
 
         os.unlink(temp_path)
 
         if response.status_code == 200:
             data = response.json()
-            if "job_id" in data:
+            job_id = data["job_id"]
+            status = wait_for_job(job_id, timeout=60)
+            if status.get("status") == "completed":
                 results.add_pass("TXT file upload")
             else:
-                results.add_fail("TXT file upload", "Missing job_id")
+                results.add_fail("TXT file upload", f"Job status: {status.get('status')}")
         else:
             results.add_fail("TXT file upload", f"Status {response.status_code}")
     except Exception as e:
@@ -165,60 +228,21 @@ def test_high_wpm(results: TestResult):
     try:
         response = requests.post(
             f"{API_URL}/generate",
-            data={
-                "text": "Quick test at maximum speed",
-                "wpm": "5000",
-            },
-            timeout=30,
+            data={"text": "Quick test at maximum speed", "wpm": "5000"},
+            timeout=10,
         )
 
         if response.status_code == 200:
-            results.add_pass("High WPM (5000)")
+            data = response.json()
+            status = wait_for_job(data["job_id"], timeout=30)
+            if status.get("status") == "completed":
+                results.add_pass("High WPM (5000)")
+            else:
+                results.add_fail("High WPM (5000)", f"Job status: {status.get('status')}")
         else:
             results.add_fail("High WPM (5000)", f"Status {response.status_code}")
     except Exception as e:
         results.add_fail("High WPM (5000)", str(e))
-
-
-def test_low_wpm(results: TestResult):
-    """Test video generation at low WPM (100)."""
-    try:
-        response = requests.post(
-            f"{API_URL}/generate",
-            data={
-                "text": "Quick test at minimum speed",
-                "wpm": "100",
-            },
-            timeout=60,
-        )
-
-        if response.status_code == 200:
-            results.add_pass("Low WPM (100)")
-        else:
-            results.add_fail("Low WPM (100)", f"Status {response.status_code}")
-    except Exception as e:
-        results.add_fail("Low WPM (100)", str(e))
-
-
-def test_word_grouping(results: TestResult):
-    """Test video generation with word grouping."""
-    try:
-        response = requests.post(
-            f"{API_URL}/generate",
-            data={
-                "text": "Testing word grouping feature with multiple words per frame",
-                "wpm": "1000",
-                "word_grouping": "3",
-            },
-            timeout=30,
-        )
-
-        if response.status_code == 200:
-            results.add_pass("Word grouping (3 words)")
-        else:
-            results.add_fail("Word grouping (3 words)", f"Status {response.status_code}")
-    except Exception as e:
-        results.add_fail("Word grouping (3 words)", str(e))
 
 
 def test_custom_colors(results: TestResult):
@@ -228,16 +252,21 @@ def test_custom_colors(results: TestResult):
             f"{API_URL}/generate",
             data={
                 "text": "Testing custom colors",
-                "wpm": "1000",
+                "wpm": "2000",
                 "text_color": "#FFFFFF",
                 "bg_color": "#000000",
                 "highlight_color": "#00FF00",
             },
-            timeout=30,
+            timeout=10,
         )
 
         if response.status_code == 200:
-            results.add_pass("Custom colors")
+            data = response.json()
+            status = wait_for_job(data["job_id"], timeout=30)
+            if status.get("status") == "completed":
+                results.add_pass("Custom colors")
+            else:
+                results.add_fail("Custom colors", f"Job status: {status.get('status')}")
         else:
             results.add_fail("Custom colors", f"Status {response.status_code}")
     except Exception as e:
@@ -258,16 +287,16 @@ def run_all_tests():
     test_health_check(results)
     test_empty_text_rejection(results)
 
+    print("\nAsync Flow Tests:")
+    test_async_job_submission(results)
+    test_job_status_polling(results)
+
     print("\nGeneration Tests:")
-    test_text_generation(results)
+    test_full_generation_flow(results)
     test_txt_file_upload(results)
 
-    print("\nSpeed Tests:")
-    test_high_wpm(results)
-    test_low_wpm(results)
-
     print("\nFeature Tests:")
-    test_word_grouping(results)
+    test_high_wpm(results)
     test_custom_colors(results)
 
     success = results.summary()

@@ -7,3 +7,5 @@ pypdf2==3.0.1
 markdown==3.5.2
 aiofiles==23.2.1
 pydantic==2.5.3
+celery[redis]==5.3.6
+redis==5.0.1
