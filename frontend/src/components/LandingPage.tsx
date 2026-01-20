@@ -54,13 +54,10 @@ function RSVPDemo() {
   const word = DEMO_WORDS[currentIndex]
   const orpIndex = findORP(word)
 
-  // Calculate character widths to position ORP at center
-  // Using monospace-like estimation: each char ~0.6em for this font
-  const charWidth = 0.6 // Approximate em width per character
-  const beforeORP = orpIndex
-  const orpCharWidth = 1
-  // Offset to shift word so ORP center aligns with container center
-  const offsetEm = (beforeORP + orpCharWidth / 2) * charWidth
+  // Split word into: before ORP, ORP char, after ORP
+  const beforeORP = word.slice(0, orpIndex)
+  const orpChar = word[orpIndex] || ''
+  const afterORP = word.slice(orpIndex + 1)
 
   return (
     <motion.div
@@ -81,21 +78,20 @@ function RSVPDemo() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.1 }}
-            className="text-5xl md:text-6xl font-bold tracking-wide absolute"
-            style={{
-              // Position word so ORP character center is at container center
-              left: '50%',
-              transform: `translateX(calc(-${offsetEm}em))`,
-            }}
+            className="text-5xl md:text-6xl font-bold tracking-wide whitespace-nowrap"
           >
-            {word.split('').map((char, i) => (
-              <span
-                key={i}
-                className={i === orpIndex ? 'text-red-500' : 'text-white'}
-              >
-                {char}
-              </span>
-            ))}
+            {/*
+              Use inline-grid with 3 columns:
+              - Left column: text before ORP (right-aligned)
+              - Center column: ORP character (centered)
+              - Right column: text after ORP (left-aligned)
+              The center column is always at the container's center
+            */}
+            <span className="inline-grid" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
+              <span className="text-white text-right">{beforeORP}</span>
+              <span className="text-red-500">{orpChar}</span>
+              <span className="text-white text-left">{afterORP}</span>
+            </span>
           </motion.div>
         </AnimatePresence>
       </div>
