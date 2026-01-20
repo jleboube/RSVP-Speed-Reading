@@ -30,6 +30,15 @@ const DEMO_WORDS = [
   'video.',
 ]
 
+function findORP(word: string): number {
+  // Same ORP algorithm as backend
+  const length = word.length
+  if (length <= 1) return 0
+  if (length <= 5) return Math.floor(length / 3)
+  if (length <= 9) return Math.floor(length / 3)
+  return Math.floor(length / 4)
+}
+
 function RSVPDemo() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -43,7 +52,15 @@ function RSVPDemo() {
   }, [isPlaying])
 
   const word = DEMO_WORDS[currentIndex]
-  const orpIndex = Math.floor(word.length / 3)
+  const orpIndex = findORP(word)
+
+  // Calculate character widths to position ORP at center
+  // Using monospace-like estimation: each char ~0.6em for this font
+  const charWidth = 0.6 // Approximate em width per character
+  const beforeORP = orpIndex
+  const orpCharWidth = 1
+  // Offset to shift word so ORP center aligns with container center
+  const offsetEm = (beforeORP + orpCharWidth / 2) * charWidth
 
   return (
     <motion.div
@@ -53,9 +70,10 @@ function RSVPDemo() {
       transition={{ duration: 0.5, delay: 0.3 }}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-cyan-600/10" />
+      {/* Center alignment marker */}
       <div className="absolute top-0 left-1/2 w-0.5 h-4 bg-red-500 transform -translate-x-1/2" />
 
-      <div className="relative h-32 flex items-center justify-center">
+      <div className="relative h-32 flex items-center justify-center overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
@@ -63,7 +81,12 @@ function RSVPDemo() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.1 }}
-            className="text-5xl md:text-6xl font-bold tracking-wide"
+            className="text-5xl md:text-6xl font-bold tracking-wide absolute"
+            style={{
+              // Position word so ORP character center is at container center
+              left: '50%',
+              transform: `translateX(calc(-${offsetEm}em))`,
+            }}
           >
             {word.split('').map((char, i) => (
               <span

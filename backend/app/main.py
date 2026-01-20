@@ -7,10 +7,11 @@ from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app.worker import celery_app, generate_video_task, cleanup_job
+from app.storage import is_s3_enabled, video_exists, get_video_url
 
 app = FastAPI(title="RSVP Video Generator")
 
@@ -201,6 +202,12 @@ async def get_job_status(job_id: str):
 @app.get("/api/download/{job_id}")
 async def download_video(job_id: str):
     """Download the generated video."""
+    # Check S3 first if enabled
+    if is_s3_enabled() and video_exists(job_id):
+        s3_url = get_video_url(job_id)
+        return RedirectResponse(url=s3_url, status_code=302)
+
+    # Fall back to local file
     output_path = TEMP_DIR / job_id / "output.mp4"
 
     if not output_path.exists():

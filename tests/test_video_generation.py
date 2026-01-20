@@ -159,9 +159,14 @@ def test_full_generation_flow(results: TestResult):
         # Wait for completion
         status = wait_for_job(job_id, timeout=60)
 
-        # Download video
+        # Download video - handle both local and S3 URLs
         download_url = status.get("download_url", f"/api/download/{job_id}")
-        video_response = requests.get(f"{BASE_URL}{download_url}", timeout=10)
+        if download_url.startswith("http"):
+            # S3 URL - use directly
+            video_response = requests.get(download_url, timeout=10)
+        else:
+            # Local URL - prepend base URL
+            video_response = requests.get(f"{BASE_URL}{download_url}", timeout=10)
 
         if video_response.status_code == 200:
             content_type = video_response.headers.get("content-type", "")

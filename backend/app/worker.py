@@ -7,6 +7,8 @@ from pathlib import Path
 from celery import Celery
 from PIL import Image, ImageDraw, ImageFont
 
+from app.storage import upload_video, get_video_url, is_s3_enabled
+
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 celery_app = Celery(
@@ -80,7 +82,11 @@ def parse_text(text: str, word_grouping: int = 1) -> list[str]:
 
 
 def create_frame(word: str, config: dict, frame_path: Path) -> None:
-    """Create a single frame image with the word displayed."""
+    """Create a single frame image with the word displayed.
+
+    The ORP (Optimal Recognition Point) character is always positioned
+    at the exact center of the frame so the eye doesn't need to move.
+    """
     bg_rgb = hex_to_rgb(config["bg_color"])
     text_rgb = hex_to_rgb(config["text_color"])
     highlight_rgb = hex_to_rgb(config["highlight_color"])
@@ -99,27 +105,53 @@ def create_frame(word: str, config: dict, frame_path: Path) -> None:
     except OSError:
         font = ImageFont.load_default()
 
-    bbox = draw.textbbox((0, 0), word, font=font)
-    text_width = bbox[2] - bbox[0]
-    text_height = bbox[3] - bbox[1]
-
-    x = (width - text_width) // 2
-    y = (height - text_height) // 2
-
+    # Find ORP position
     orp = find_optimal_fixation_point(word.replace(" ", ""))
 
-    char_x = x
+    # Calculate the precise position of each character using textbbox
+    # This gives us the actual rendered bounding box
+    char_positions = []
+    current_x = 0
     for i, char in enumerate(word):
-        char_bbox = draw.textbbox((0, 0), char, font=font)
+        # Get the actual bounding box when drawn at current_x
+        char_bbox = draw.textbbox((current_x, 0), char, font=font)
         char_width = char_bbox[2] - char_bbox[0]
+        char_left = char_bbox[0]
+        char_positions.append({
+            'char': char,
+            'left': char_left,
+            'width': char_width,
+            'center': char_left + char_width / 2,
+            'advance': font.getlength(char)  # How far to move for next char
+        })
+        current_x += font.getlength(char)
 
+    # The ORP character's center position (relative to drawing at x=0)
+    if orp < len(char_positions):
+        orp_center = char_positions[orp]['center']
+    else:
+        orp_center = 0
+
+    # Position word so ORP character center is at screen center
+    screen_center_x = width // 2
+    word_start_x = screen_center_x - orp_center
+
+    # Calculate vertical position (center the text height)
+    bbox = draw.textbbox((0, 0), word, font=font)
+    text_height = bbox[3] - bbox[1]
+    y = (height - text_height) // 2
+
+    # Draw each character individually for coloring
+    char_x = word_start_x
+    for i, char in enumerate(word):
         color = highlight_rgb if i == orp else text_rgb
         draw.text((char_x, y), char, font=font, fill=color)
-        char_x += char_width
+        char_x += char_positions[i]['advance']
 
+    # Draw center alignment marker above text
     center_line_y = y - 20
     draw.line(
-        [(width // 2, center_line_y), (width // 2, center_line_y + 10)],
+        [(screen_center_x, center_line_y), (screen_center_x, center_line_y + 10)],
         fill=highlight_rgb,
         width=3,
     )
@@ -208,10 +240,31 @@ def generate_video_task(self, job_id: str, text: str, config: dict):
     for frame_path, _ in frame_data:
         Path(frame_path).unlink(missing_ok=True)
 
+    # Upload to S3 if enabled
+    s3_key = None
+    video_url = f"/api/download/{job_id}"
+
+    if is_s3_enabled():
+        self.update_state(
+            state="PROGRESS",
+            meta={
+                "current": total_words,
+                "total": total_words,
+                "percent": 95,
+                "status": "Uploading to cloud storage...",
+            },
+        )
+        s3_key = upload_video(output_path, job_id)
+        if s3_key:
+            video_url = get_video_url(job_id, s3_key)
+            # Remove local file after successful S3 upload
+            output_path.unlink(missing_ok=True)
+
     return {
         "job_id": job_id,
         "word_count": total_words,
-        "download_url": f"/api/download/{job_id}",
+        "download_url": video_url,
+        "s3_key": s3_key,
         "status": "completed",
     }
 
